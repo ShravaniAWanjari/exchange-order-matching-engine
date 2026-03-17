@@ -1,11 +1,11 @@
-# Low-Latency-Limit-Order-Book-Engine
-building the core of a stock exchange matching engine
+# Low Latency LOB Engine
 
-1. there's bid orders and ask orders
-2. We match bid orders prices >= ask order prices
-3. If two same prices exist we match based on time priority
+This repository is being rebuilt from scratch as a serious C++ learning project.
 
-Seems simple, but I will be doing this in large scale where it can process 4M orders per second because that's what stock exchanges operate at.
-and I am learning so its building and learning from scratch.
+The roadmap is simple:
 
+1. Build a correct matching engine
+2. Add realistic features and benchmarks
+3. Optimize for latency with measurement-driven changes
 
+The implementation is intentionally written manually for learning. The project goal, scope, and phase breakdown are documented in [About.md](/c:/Users/Lenovo/OneDrive/Desktop/12%20week%20thing/low_latency_lob_engine/About.md).
