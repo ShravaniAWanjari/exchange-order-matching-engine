@@ -8,27 +8,26 @@ enum class Side{
     Sell
 };
 
-struct OrderRequest{
+struct OrderRequest {
     std::uint64_t id;
     double price;
     std::uint32_t quantity;
     Side side;
 
-    OrderRequest(
-        std::uint64_t orderId,
-        double orderPrice.
-        std::uint32_t quantity,
-        Side orderSide):
-        id(orderId),
-        price(orderPrice),
-        quantity(orderQuantity),
-        side(orderSide){}
-}
+    OrderRequest(std::uint64_t orderId,
+                 double orderPrice,
+                 std::uint32_t orderQuantity,
+                 Side orderSide)
+        : id(orderId),
+          price(orderPrice),
+          quantity(orderQuantity),
+          side(orderSide) {}
+};
 
 struct Order{
     std::uint64_t id;
     double price;
-    std::uint64_t quantity;
+    std::uint32_t quantity;
     Side side;
     std::uint64_t sequence;
 

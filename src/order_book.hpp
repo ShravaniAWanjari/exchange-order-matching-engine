@@ -11,7 +11,7 @@
 class OrderBook{
     public:
     using OrderQueue = std::deque<Order>;
-    using AskLevels = std::map<double, OrderQuantity>;
+    using AskLevels = std::map<double, OrderQueue>;
     using BidLevels = std::map<double, OrderQueue, std::greater<double>>;
 
     OrderBook();
