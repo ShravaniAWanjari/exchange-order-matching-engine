@@ -61,12 +61,65 @@ void runInvalidOrderRejection() {
     book.printBook();
 }
 
+void runCancelExistingBid() {
+    printScenarioTitle("Scenario 6: Cancel Existing Bid");
+
+    OrderBook book;
+    book.addOrder(OrderRequest{1, 100.0, 20, Side::Buy});
+    book.addOrder(OrderRequest{2, 100.0, 40, Side::Buy});
+    book.addOrder(OrderRequest{3, 101.0, 10, Side::Buy});
+
+    bool cancelled = book.cancelOrder(2);
+    std::cout << "Cancel 2: " << (cancelled ? "success" : "failed") << '\n';
+
+    book.printBook();
+}
+
+void runCancelExistingAsk() {
+    printScenarioTitle("Scenario 7: Cancel Existing Ask");
+
+    OrderBook book;
+    book.addOrder(OrderRequest{1, 102.0, 20, Side::Sell});
+    book.addOrder(OrderRequest{2, 103.0, 40, Side::Sell});
+
+    bool cancelled = book.cancelOrder(1);
+    std::cout << "Cancel 1: " << (cancelled ? "success" : "failed") << '\n';
+
+    book.printBook();
+}
+
+void runCancelMissingOrder() {
+    printScenarioTitle("Scenario 8: Cancel Missing Order");
+
+    OrderBook book;
+    book.addOrder(OrderRequest{1, 100.0, 20, Side::Buy});
+
+    bool cancelled = book.cancelOrder(99);
+    std::cout << "Cancel 99: " << (cancelled ? "success" : "failed") << '\n';
+
+    book.printBook();
+}
+
+void runDuplicateActiveIdRejection() {
+    printScenarioTitle("Scenario 9: Duplicate Active Id Rejection");
+
+    OrderBook book;
+    book.addOrder(OrderRequest{1, 100.0, 20, Side::Buy});
+    book.addOrder(OrderRequest{1, 101.0, 30, Side::Sell});
+
+    book.printBook();
+}
+
 int main() {
     runPartialFillAcrossLevels();
     runNonCrossingOrders();
     runExactFullFill();
     runFifoAtSamePrice();
     runInvalidOrderRejection();
+    runCancelExistingBid();
+    runCancelExistingAsk();
+    runCancelMissingOrder();
+    runDuplicateActiveIdRejection();
 
     return 0;
 }

@@ -19,7 +19,7 @@ struct PriceLevel{
 struct OrderLocator {
     Side side;
     double price;
-}
+};
 
 class OrderBook{
     public:
@@ -29,7 +29,7 @@ class OrderBook{
     OrderBook();
 
     void addOrder(const OrderRequest& request);
-    bool cancelOrder(std::uint64_t orderId)
+    bool cancelOrder(std::uint64_t orderId);
     void printBook() const;
 
 private:
