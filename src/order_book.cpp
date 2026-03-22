@@ -53,11 +53,16 @@ void OrderBook::addOrder(const OrderRequest& request){
 
                 std::uint32_t tradedQuantity = std::min(incoming.quantity, restingAsk.quantity);
 
-                std::cout << "Trade : "
-                          << tradedQuantity
-                          << "@"
-                          << restingAsk.price
-                          << "\n" ;
+                std::cout << "Trade: incoming="
+                << incoming.id
+                << " resting="
+                << restingAsk.id
+                << " qty="
+                << tradedQuantity
+                << " price="
+                << restingAsk.price
+                << '\n';
+      
                 
                 incoming.quantity -= tradedQuantity;
                 restingAsk.quantity -= tradedQuantity;
@@ -91,11 +96,17 @@ void OrderBook::addOrder(const OrderRequest& request){
                 std::uint32_t tradedQuantity =
                     std::min(incoming.quantity, restingBid.quantity);
 
-                std::cout << "Trade: "
-                          << tradedQuantity
-                          << " @ "
-                          << restingBid.price
-                          << '\n';
+                    std::cout << "Trade: incoming="
+                    << incoming.id
+                    << " resting="
+                    << restingBid.id
+                    << " qty="
+                    << tradedQuantity
+                    << " price="
+                    << restingBid.price
+                    << '\n';
+          
+          
 
                 incoming.quantity -= tradedQuantity;
                 restingBid.quantity -= tradedQuantity;
