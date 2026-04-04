@@ -4,7 +4,51 @@
 #include <iostream>
 #include <utility>
 
-OrderBook::OrderBook() : nextSequence_(1) {}
+namespace {
+    LevelSnapshot makeLevelSnapshot(double price, const PriceLevel& level){
+        LevelSnapshot levelSnapshot{price, level.totalQuantity, {}};
+        levelSnapshot.orders.reserve(level.orders.size());
+
+        for (const Order& order : level.orders){
+            levelSnapshot.orders.push_back(
+                OrderSnapshot{order.id,order.quantity, order.sequence}
+            );
+        }
+
+        return levelSnapshot;
+    }
+}
+
+void printAggregatedSide(const char* sideName, const std::vector<LevelSnapshot>& levels){
+    std::cout << sideName << '\n';
+
+    for (const LevelSnapshot& level : levels){
+        std::cout << level.price
+                  << " : "
+                  << level.totalQuantity
+                  << '\n';
+    }
+}
+
+void printDetailedSide(const char* sideName, const std::vector<LevelSnapshot>& levels){
+    std::cout << sideName << '\n';
+
+    for (const LevelSnapshot& level : levels){
+        std::cout << level.price
+                  << " : "
+                  << level.totalQuantity
+                  << '\n';
+
+        for (const OrderSnapshot& order : level.orders){
+            std::cout << " id=" << order.id
+                      << " qty=" << order.quantity
+                      << " seq=" << order.sequence
+                      << '\n';
+        }
+    }
+}
+
+OrderBook::OrderBook(bool enableLogging) : nextSequence_(1), loggingEnabled_(enableLogging) {}
 
 Order OrderBook::makeOrder(const OrderRequest& request) {
     return Order(
@@ -19,12 +63,16 @@ Order OrderBook::makeOrder(const OrderRequest& request) {
 
 void OrderBook::addOrder(const OrderRequest& request){
     if (request.price <= 0.0 || request.quantity ==0){
-        std::cout << "Rejected order: invalid price or quantity\n";
+        if (loggingEnabled_) {
+            std::cout << "Rejected order: invalid price or quantity\n";
+        }
         return;
     }
 
     if (orderIndex_.find(request.id) != orderIndex_.end()){
-        std::cout << "Rejected Order : duplicate id\n";
+        if (loggingEnabled_) {
+            std::cout << "Rejected order: duplicate id\n";
+        }
         return;
     }
 
@@ -44,12 +92,14 @@ void OrderBook::addOrder(const OrderRequest& request){
                 Order& restingAsk = askLevel.orders.front(); //what's restingAsk now
 
                 std::uint32_t tradedQuantity = std::min(incoming.quantity, restingAsk.quantity);
+                if (loggingEnabled_){
 
-                std::cout << "Trade: "
-                          << tradedQuantity
-                          << " @ "
-                          << restingAsk.price
-                          << '\n';
+                    std::cout << "Trade: "
+                            << tradedQuantity
+                            << " @ "
+                            << restingAsk.price
+                            << '\n';
+                }
       
                 
                 incoming.quantity -= tradedQuantity;
@@ -91,12 +141,13 @@ void OrderBook::addOrder(const OrderRequest& request){
 
                 std::uint32_t tradedQuantity =
                     std::min(incoming.quantity, restingBid.quantity);
-
-                    std::cout << "Trade: " 
-                              << tradedQuantity
-                              << " @ "
-                              << restingBid.price
-                              << '\n';
+                    if (loggingEnabled_){
+                        std::cout << "Trade: " 
+                                << tradedQuantity
+                                << " @ "
+                                << restingBid.price
+                                << '\n';
+                    }
           
           
 
@@ -189,20 +240,38 @@ bool OrderBook::cancelOrder(std::uint64_t orderId) {
 }
 
 
-void OrderBook::printBook() const {
-    std::cout << "BIDS\n";
-    for (const auto& level : bids_) {
-        std::cout << level.first
-                  << " : "
-                  << level.second.totalQuantity
-                  << '\n';
+BookSnapshot OrderBook::snapshot() const{
+    BookSnapshot bookSnapshot;
+
+    bookSnapshot.bids.reserve(bids_.size());
+    for (const auto& levelEntry : bids_){
+        bookSnapshot.bids.push_back(
+            makeLevelSnapshot(levelEntry.first, levelEntry.second)
+        );
     }
 
-    std::cout << "\nASKS\n";
-    for (const auto& level : asks_) {
-        std::cout << level.first
-                  << " : "
-                  << level.second.totalQuantity
-                  << '\n';
+    bookSnapshot.asks.reserve(asks_.size());
+    for (const auto& levelEntry : asks_){
+        bookSnapshot.asks.push_back(
+            makeLevelSnapshot(levelEntry.first, levelEntry.second)
+        );
     }
+
+    return bookSnapshot;
+}
+
+void OrderBook::printBook() const {
+    BookSnapshot bookSnapshot = snapshot();
+
+    printAggregatedSide("BIDS", bookSnapshot.bids);
+    std::cout << "\n";
+    printAggregatedSide("ASKS", bookSnapshot.asks);
+}
+
+void OrderBook::printDetailedBook() const {
+    BookSnapshot bookSnapshot = snapshot();
+
+    printDetailedSide("BIDS", bookSnapshot.bids);
+    std::cout << '\n';
+    printDetailedSide("ASKS", bookSnapshot.asks);
 }
