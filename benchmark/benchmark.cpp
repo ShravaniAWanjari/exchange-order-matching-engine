@@ -19,30 +19,15 @@ struct BenchmarkEvent {
     std::uint64_t cancelId;
 };
 
-struct BenchmarkResult {
-    std::size_t operations;
-    double seconds;
-    double opsPerSecond;
-    std::vector<std::uint64_t> latencySamplesNs;
-    std::size_t restingLevels;
-    std::size_t restingOrders;
-    std::uint64_t restingVolume;
-};
-
-double ticksToPrice(int ticks) {
-    return static_cast<double>(ticks) / 100.0;
-}
-
 BenchmarkEvent makeAddEvent(std::uint64_t id,
-                             double price,
+                             std::int64_t price,
                              std::uint32_t quantity,
                              Side side) {
     return {EventType::Add, OrderRequest{id, price, quantity, side}, 0};
 }
 
 BenchmarkEvent makeCancelEvent(std::uint64_t orderId) {
-    // Dummy order request for initialization, only cancelId matters for Cancel type
-    return {EventType::Cancel, OrderRequest{0, 1.0, 1, Side::Buy}, orderId};
+    return {EventType::Cancel, OrderRequest{0, 1, 1, Side::Buy}, orderId};
 }
 
 void executeEvent(OrderBook& book, const BenchmarkEvent& event) {
@@ -57,8 +42,8 @@ std::vector<BenchmarkEvent> generateRestingMixedWorkload(std::size_t eventCount,
     std::mt19937_64 rng(seed);
     std::bernoulli_distribution cancelDist(0.15);
     std::uniform_int_distribution<int> sideDist(0, 1);
-    std::uniform_int_distribution<int> buyTicks(9900, 9999);
-    std::uniform_int_distribution<int> sellTicks(10001, 10100);
+    std::uniform_int_distribution<std::int64_t> buyTicks(9900, 9999);
+    std::uniform_int_distribution<std::int64_t> sellTicks(10001, 10100);
     std::uniform_int_distribution<std::uint32_t> qtyDist(1, 100);
 
     std::vector<BenchmarkEvent> events;
@@ -83,7 +68,7 @@ std::vector<BenchmarkEvent> generateRestingMixedWorkload(std::size_t eventCount,
             events.push_back(makeCancelEvent(orderId));
         } else {
             Side side = (sideDist(rng) == 0) ? Side::Buy : Side::Sell;
-            double price = (side == Side::Buy) ? ticksToPrice(buyTicks(rng)) : ticksToPrice(sellTicks(rng));
+            std::int64_t price = (side == Side::Buy) ? buyTicks(rng) : sellTicks(rng);
             std::uint32_t quantity = qtyDist(rng);
 
             events.push_back(makeAddEvent(nextId, price, quantity, side));
@@ -109,7 +94,7 @@ std::vector<BenchmarkEvent> generateMatchingWorkload(std::size_t blockCount, std
         for (int i = 0; i < 4; ++i) {
             events.push_back(makeAddEvent(
                 nextId++,
-                ticksToPrice(10001 + i),
+                10001 + i,
                 passiveQtyDist(rng),
                 Side::Sell
             ));
@@ -118,7 +103,7 @@ std::vector<BenchmarkEvent> generateMatchingWorkload(std::size_t blockCount, std
         // Add aggressive orders to match
         events.push_back(makeAddEvent(
             nextId++,
-            ticksToPrice(10005),
+            10005,
             aggressiveQtyDist(rng) * 2,
             Side::Buy
         ));
@@ -161,7 +146,7 @@ void runBenchmark(const std::string& name, const std::vector<BenchmarkEvent>& ev
 }
 
 int main() {
-    std::cout << "Starting Phase 2 Benchmarks...\n";
+    std::cout << "Starting Phase 3 Benchmarks (Optimized)...\n";
     std::cout << std::string(100, '-') << "\n";
 
     auto mixedEvents = generateRestingMixedWorkload(100000, 42);

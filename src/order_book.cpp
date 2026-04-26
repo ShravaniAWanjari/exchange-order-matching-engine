@@ -5,13 +5,13 @@
 #include <utility>
 
 namespace {
-    LevelSnapshot makeLevelSnapshot(double price, const PriceLevel& level){
+    LevelSnapshot makeLevelSnapshot(std::int64_t price, const PriceLevel& level){
         LevelSnapshot levelSnapshot{price, level.totalQuantity, {}};
         levelSnapshot.orders.reserve(level.orders.size());
 
         for (const Order& order : level.orders){
             levelSnapshot.orders.push_back(
-                OrderSnapshot{order.id,order.quantity, order.sequence}
+                OrderSnapshot{order.id, order.quantity, order.sequence}
             );
         }
 
@@ -62,7 +62,7 @@ Order OrderBook::makeOrder(const OrderRequest& request) {
 
 
 void OrderBook::addOrder(const OrderRequest& request){
-    if (request.price <= 0.0 || request.quantity ==0){
+    if (request.price <= 0 || request.quantity == 0){
         if (loggingEnabled_) {
             std::cout << "Rejected order: invalid price or quantity\n";
         }
@@ -78,8 +78,8 @@ void OrderBook::addOrder(const OrderRequest& request){
 
     Order incoming = makeOrder(request);
 
-    if (incoming.side== Side::Buy){
-        while(incoming.quantity >0 && !asks_.empty()){
+    if (incoming.side == Side::Buy){
+        while(incoming.quantity > 0 && !asks_.empty()){
             auto bestAskIt = asks_.begin();
 
             if (bestAskIt->first > incoming.price){
@@ -93,19 +93,16 @@ void OrderBook::addOrder(const OrderRequest& request){
 
                 std::uint32_t tradedQuantity = std::min(incoming.quantity, restingAsk.quantity);
                 if (loggingEnabled_){
-
                     std::cout << "Trade: "
                             << tradedQuantity
                             << " @ "
                             << restingAsk.price
                             << '\n';
                 }
-      
                 
                 incoming.quantity -= tradedQuantity;
                 restingAsk.quantity -= tradedQuantity;
                 askLevel.totalQuantity -= tradedQuantity;
-
 
                 if (restingAsk.quantity == 0){
                     orderIndex_.erase(restingAsk.id);
@@ -122,9 +119,9 @@ void OrderBook::addOrder(const OrderRequest& request){
             PriceLevel& bidLevel = bids_[incoming.price];
             bidLevel.orders.push_back(std::move(incoming));
 
-            Order& storedOrder = bidLevel.orders.back();
-            bidLevel.totalQuantity += storedOrder.quantity;
-            orderIndex_[storedOrder.id] = {storedOrder.side, storedOrder.price};
+            auto it = std::prev(bidLevel.orders.end());
+            bidLevel.totalQuantity += it->quantity;
+            orderIndex_[it->id] = {it->side, it->price, it};
         }
     } else {
         while (incoming.quantity > 0 && !bids_.empty()) {
@@ -139,17 +136,14 @@ void OrderBook::addOrder(const OrderRequest& request){
             while (incoming.quantity > 0 && !bidLevel.orders.empty()) {
                 Order& restingBid = bidLevel.orders.front();
 
-                std::uint32_t tradedQuantity =
-                    std::min(incoming.quantity, restingBid.quantity);
-                    if (loggingEnabled_){
-                        std::cout << "Trade: " 
-                                << tradedQuantity
-                                << " @ "
-                                << restingBid.price
-                                << '\n';
-                    }
-          
-          
+                std::uint32_t tradedQuantity = std::min(incoming.quantity, restingBid.quantity);
+                if (loggingEnabled_){
+                    std::cout << "Trade: " 
+                            << tradedQuantity
+                            << " @ "
+                            << restingBid.price
+                            << '\n';
+                }
 
                 incoming.quantity -= tradedQuantity;
                 restingBid.quantity -= tradedQuantity;
@@ -170,9 +164,9 @@ void OrderBook::addOrder(const OrderRequest& request){
             PriceLevel& askLevel = asks_[incoming.price];
             askLevel.orders.push_back(std::move(incoming));
 
-            Order& storedOrder = askLevel.orders.back();
-            askLevel.totalQuantity += storedOrder.quantity;
-            orderIndex_[storedOrder.id] = {storedOrder.side, storedOrder.price};
+            auto it = std::prev(askLevel.orders.end());
+            askLevel.totalQuantity += it->quantity;
+            orderIndex_[it->id] = {it->side, it->price, it};
         }
     }
 }
@@ -188,55 +182,35 @@ bool OrderBook::cancelOrder(std::uint64_t orderId) {
 
     if (locator.side == Side::Buy) {
         auto levelIt = bids_.find(locator.price);
-
         if (levelIt == bids_.end()) {
             return false;
         }
 
         PriceLevel& bidLevel = levelIt->second;
+        bidLevel.totalQuantity -= locator.iterator->quantity;
+        bidLevel.orders.erase(locator.iterator);
+        orderIndex_.erase(indexIt);
 
-        for (auto orderIt = bidLevel.orders.begin();
-             orderIt != bidLevel.orders.end();
-             ++orderIt) {
-            if (orderIt->id == orderId) {
-                bidLevel.totalQuantity -= orderIt->quantity;
-                bidLevel.orders.erase(orderIt);
-                orderIndex_.erase(indexIt);
-
-                if (bidLevel.orders.empty()) {
-                    bids_.erase(levelIt);
-                }
-
-                return true;
-            }
+        if (bidLevel.orders.empty()) {
+            bids_.erase(levelIt);
         }
+        return true;
     } else {
         auto levelIt = asks_.find(locator.price);
-
         if (levelIt == asks_.end()) {
             return false;
         }
 
         PriceLevel& askLevel = levelIt->second;
+        askLevel.totalQuantity -= locator.iterator->quantity;
+        askLevel.orders.erase(locator.iterator);
+        orderIndex_.erase(indexIt);
 
-        for (auto orderIt = askLevel.orders.begin();
-             orderIt != askLevel.orders.end();
-             ++orderIt) {
-            if (orderIt->id == orderId) {
-                askLevel.totalQuantity -= orderIt->quantity;
-                askLevel.orders.erase(orderIt);
-                orderIndex_.erase(indexIt);
-
-                if (askLevel.orders.empty()) {
-                    asks_.erase(levelIt);
-                }
-
-                return true;
-            }
+        if (askLevel.orders.empty()) {
+            asks_.erase(levelIt);
         }
+        return true;
     }
-
-    return false;
 }
 
 
