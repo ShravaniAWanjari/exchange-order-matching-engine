@@ -86,10 +86,10 @@ void OrderBook::addOrder(const OrderRequest& request){
                 break;
             }
 
-            PriceLevel& askLevel = bestAskIt->second; //kinda confused about this part -> first -> second
+            PriceLevel& askLevel = bestAskIt->second;
 
             while (incoming.quantity > 0 && !askLevel.orders.empty()) {
-                Order& restingAsk = askLevel.orders.front(); //what's restingAsk now
+                Order& restingAsk = askLevel.orders.front();
 
                 std::uint32_t tradedQuantity = std::min(incoming.quantity, restingAsk.quantity);
                 if (loggingEnabled_){
