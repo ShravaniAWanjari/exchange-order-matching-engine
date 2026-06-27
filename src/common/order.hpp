@@ -1,14 +1,17 @@
 #pragma once
-
 #include "types.hpp"
+struct Order {
+  OrderId order_id;
 
-namespace lob {
-struct alignas(32) Order {
-  OrderId id;
+  Timestamp timestamp;
+
   Price price;
-  uint64_t timestamp;
+
   Quantity quantity;
+
+  Quantity remaining_qty;
+
   Side side;
+
   OrderType type;
 };
-} // namespace lob

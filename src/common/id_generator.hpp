@@ -1,12 +1,16 @@
 #pragma once
-
-#include "types.hpp"
+#include "order.hpp"
 #include <atomic>
+#include <fstream>
+#include <types.hpp>
 
-namespace lob {
-
-class OrderIdGenerator {
+class IDGenerator {
 public:
+  IDGenerator(const IDGenerator &) = delete;
+  IDGenerator &operator=(const IDGenerator &) = delete;
+
+  IDGenerator() = default;
+
   inline OrderId next() noexcept {
     return counter_.fetch_add(1, std::memory_order_relaxed);
   }
@@ -14,5 +18,3 @@ public:
 private:
   std::atomic<OrderId> counter_{1};
 };
-
-} // namespace lob
