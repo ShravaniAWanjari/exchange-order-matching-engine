@@ -1,6 +1,7 @@
 #pragma once
+#include "types.hpp"
 #include <atomic>
-#include <types.hpp>
+
 
 class IDGenerator {
 public:

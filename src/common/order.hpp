@@ -1,5 +1,6 @@
 #pragma once
 #include "types.hpp"
+
 struct Order {
   OrderId order_id;
 
@@ -10,6 +11,10 @@ struct Order {
   Quantity quantity;
 
   Quantity remaining_qty;
+
+  Index prev;
+
+  Index next;
 
   Side side;
 

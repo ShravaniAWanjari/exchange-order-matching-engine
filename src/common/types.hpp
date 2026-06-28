@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <limits>
 
 enum class Side : uint8_t { BUY = 0, SELL = 1 };
 
@@ -12,3 +13,6 @@ using Quantity = uint32_t;
 using OrderId = uint64_t;
 
 using Timestamp = uint64_t;
+
+using Index = uint32_t;
+constexpr Index INVALID_INDEX = std::numeric_limits<Index>::max();
