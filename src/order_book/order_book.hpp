@@ -19,7 +19,9 @@ public:
     }
   }
 
-  void add_order(OrderId id, Price price, Quantity qty, Side side) {
+  template <typename EventQueue>
+  void add_order(OrderId id, Price price, Quantity qty, Side side,
+                 EventQueue &out_queue) {
     Index new_idx = pool_.allocate();
     if (new_idx == INVALID_INDEX)
       return;
@@ -69,6 +71,7 @@ public:
 
       best_ask_ = std::min(best_ask_, price);
     }
+    out_queue.push(OutboundEvent{EventType::ACK, id, 0, price, qty});
   }
 
   void cancel_order(Index order_idx) {
@@ -137,6 +140,8 @@ public:
       }
 
       if (available < qty) {
+        out_queue.push(
+            OutboundEvent{EventType::REJECT, taker_id, 0, price, qty});
         return qty;
       }
     }
@@ -150,8 +155,9 @@ public:
         Order &maker_order = pool_.get(level.head_order);
         Quantity match_qty = std::min(remaining, maker_order.remaining_qty);
 
-        out_queue.push(ExecutionReport{maker_order.order_id, taker_id,
-                                       maker_order.price, match_qty});
+        out_queue.push(OutboundEvent{EventType::FILL, taker_id,
+                                     maker_order.order_id, maker_order.price,
+                                     match_qty});
         remaining -= match_qty;
         maker_order.remaining_qty -= match_qty;
         level.total_quantity -= match_qty;
@@ -169,8 +175,9 @@ public:
         Order &maker_order = pool_.get(level.head_order);
         Quantity match_qty = std::min(remaining, maker_order.remaining_qty);
 
-        out_queue.push(ExecutionReport{maker_order.order_id, taker_id,
-                                       maker_order.price, match_qty});
+        out_queue.push(OutboundEvent{EventType::FILL, taker_id,
+                                     maker_order.order_id, maker_order.price,
+                                     match_qty});
 
         remaining -= match_qty;
         maker_order.remaining_qty -= match_qty;
@@ -182,7 +189,7 @@ public:
       }
     }
     if (remaining > 0 && type == OrderType::LIMIT) {
-      add_order(taker_id, price, remaining, side);
+      add_order(taker_id, price, remaining, side, out_queue);
     }
 
     return remaining;

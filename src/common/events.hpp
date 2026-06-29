@@ -1,9 +1,12 @@
 #pragma once
 #include "types.hpp"
 
-struct ExecutionReport {
+enum class EventType : uint8_t { ACK = 0, FILL = 1, CANCEL = 2, REJECT = 3 };
+
+struct OutboundEvent {
+  EventType type;
   OrderId maker_order_id;
   OrderId taker_order_id;
-  Price match_price;
-  Quantity match_quantity;
+  Price price;
+  Quantity quantity;
 };
