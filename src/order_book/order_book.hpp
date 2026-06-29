@@ -1,11 +1,15 @@
 #pragma once
 #include "../common/events.hpp"
+#include "../common/latency_stats.hpp"
+#include "../common/time.hpp"
 #include "../common/types.hpp"
 #include "order_pool.hpp"
 #include "price_level.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
+
 
 class OrderBook {
 
@@ -117,6 +121,7 @@ public:
   template <typename EventQueue>
   Quantity match_order(OrderId taker_id, Price price, Quantity qty, Side side,
                        OrderType type, EventQueue &out_queue) {
+    uint64_t start = rdtsc();
     Quantity remaining = qty;
 
     if (type == OrderType::FOK) {
@@ -191,7 +196,8 @@ public:
     if (remaining > 0 && type == OrderType::LIMIT) {
       add_order(taker_id, price, remaining, side, out_queue);
     }
-
+    uint64_t end = rdtsc();
+    stats_.record_latency(end - start);
     return remaining;
   }
 
@@ -199,6 +205,8 @@ private:
   OrderPool pool_;
   std::vector<PriceLevel> bids_;
   std::vector<PriceLevel> asks_;
+
+  LatencyHistogram stats_;
 
   Price best_bid_;
   Price best_ask_;
