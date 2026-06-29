@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/events.hpp"
 #include "../common/types.hpp"
 #include "order_pool.hpp"
 #include "price_level.hpp"
@@ -7,6 +8,7 @@
 #include <vector>
 
 class OrderBook {
+
 public:
   OrderBook(size_t max_price, size_t max_orders)
       : pool_(max_orders), bids_(max_price), asks_(max_price), best_bid_(0),
@@ -107,6 +109,83 @@ public:
         }
       }
     }
+  }
+
+  template <typename EventQueue>
+  Quantity match_order(OrderId taker_id, Price price, Quantity qty, Side side,
+                       OrderType type, EventQueue &out_queue) {
+    Quantity remaining = qty;
+
+    if (type == OrderType::FOK) {
+      Quantity available = 0;
+      if (side == Side::BUY) {
+        Price temp_ask = best_ask_;
+        while (temp_ask <= price && available < qty &&
+               temp_ask < asks_.size()) {
+          available += asks_[temp_ask].total_quantity;
+          temp_ask++;
+        }
+      } else {
+        Price temp_bid = best_bid_;
+        while (temp_bid >= price && available < qty && temp_bid > 0) {
+          available += bids_[temp_bid].total_quantity;
+          temp_bid--;
+        }
+        if (temp_bid == 0 && available < qty) {
+          available += bids_[0].total_quantity;
+        }
+      }
+
+      if (available < qty) {
+        return qty;
+      }
+    }
+
+    if (side == Side::BUY) {
+      while (remaining > 0 && best_ask_ <= price) {
+        PriceLevel &level = asks_[best_ask_];
+        if (level.is_empty())
+          break;
+
+        Order &maker_order = pool_.get(level.head_order);
+        Quantity match_qty = std::min(remaining, maker_order.remaining_qty);
+
+        out_queue.push(ExecutionReport{maker_order.order_id, taker_id,
+                                       maker_order.price, match_qty});
+        remaining -= match_qty;
+        maker_order.remaining_qty -= match_qty;
+        level.total_quantity -= match_qty;
+
+        if (maker_order.remaining_qty == 0) {
+          cancel_order(level.head_order);
+        }
+      }
+    } else {
+      while (remaining > 0 && best_bid_ >= price) {
+        PriceLevel &level = bids_[best_bid_];
+        if (level.is_empty())
+          break;
+
+        Order &maker_order = pool_.get(level.head_order);
+        Quantity match_qty = std::min(remaining, maker_order.remaining_qty);
+
+        out_queue.push(ExecutionReport{maker_order.order_id, taker_id,
+                                       maker_order.price, match_qty});
+
+        remaining -= match_qty;
+        maker_order.remaining_qty -= match_qty;
+        level.total_quantity -= match_qty;
+
+        if (maker_order.remaining_qty == 0) {
+          cancel_order(level.head_order);
+        }
+      }
+    }
+    if (remaining > 0 && type == OrderType::LIMIT) {
+      add_order(taker_id, price, remaining, side);
+    }
+
+    return remaining;
   }
 
 private:
