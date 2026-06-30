@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <vector>
 
-
 class OrderBook {
 
 public:
@@ -75,7 +74,11 @@ public:
 
       best_ask_ = std::min(best_ask_, price);
     }
-    out_queue.push(OutboundEvent{EventType::ACK, id, 0, price, qty});
+    out_queue.push(OutboundEvent{.type = EventType::ACK,
+                                 .maker_order_id = 0,
+                                 .taker_order_id = id,
+                                 .price = price,
+                                 .quantity = qty});
   }
 
   void cancel_order(Index order_idx) {
@@ -122,6 +125,25 @@ public:
   Quantity match_order(OrderId taker_id, Price price, Quantity qty, Side side,
                        OrderType type, EventQueue &out_queue) {
     uint64_t start = rdtsc();
+    if (taker_id == 0 || qty == 0 || price == 0 || price >= bids_.size())
+        [[unlikely]] {
+      out_queue.push(OutboundEvent{.type = EventType::REJECT,
+                                   .maker_order_id = 0,
+                                   .taker_order_id = taker_id,
+                                   .price = price,
+                                   .quantity = qty});
+      return qty;
+    }
+
+    if (taker_id <= last_seen_id_) [[unlikely]] {
+      out_queue.push(OutboundEvent{.type = EventType::REJECT,
+                                   .maker_order_id = 0,
+                                   .taker_order_id = taker_id,
+                                   .price = price,
+                                   .quantity = qty});
+      return qty;
+    }
+    last_seen_id_ = taker_id;
     Quantity remaining = qty;
 
     if (type == OrderType::FOK) {
@@ -145,8 +167,11 @@ public:
       }
 
       if (available < qty) {
-        out_queue.push(
-            OutboundEvent{EventType::REJECT, taker_id, 0, price, qty});
+        out_queue.push(OutboundEvent{.type = EventType::REJECT,
+                                     .maker_order_id = 0,
+                                     .taker_order_id = taker_id,
+                                     .price = price,
+                                     .quantity = qty});
         return qty;
       }
     }
@@ -160,9 +185,11 @@ public:
         Order &maker_order = pool_.get(level.head_order);
         Quantity match_qty = std::min(remaining, maker_order.remaining_qty);
 
-        out_queue.push(OutboundEvent{EventType::FILL, taker_id,
-                                     maker_order.order_id, maker_order.price,
-                                     match_qty});
+        out_queue.push(OutboundEvent{.type = EventType::FILL,
+                                     .maker_order_id = maker_order.order_id,
+                                     .taker_order_id = taker_id,
+                                     .price = maker_order.price,
+                                     .quantity = match_qty});
         remaining -= match_qty;
         maker_order.remaining_qty -= match_qty;
         level.total_quantity -= match_qty;
@@ -180,10 +207,11 @@ public:
         Order &maker_order = pool_.get(level.head_order);
         Quantity match_qty = std::min(remaining, maker_order.remaining_qty);
 
-        out_queue.push(OutboundEvent{EventType::FILL, taker_id,
-                                     maker_order.order_id, maker_order.price,
-                                     match_qty});
-
+        out_queue.push(OutboundEvent{.type = EventType::FILL,
+                                     .maker_order_id = maker_order.order_id,
+                                     .taker_order_id = taker_id,
+                                     .price = maker_order.price,
+                                     .quantity = match_qty});
         remaining -= match_qty;
         maker_order.remaining_qty -= match_qty;
         level.total_quantity -= match_qty;
@@ -210,4 +238,5 @@ private:
 
   Price best_bid_;
   Price best_ask_;
+  OrderId last_seen_id_{0};
 };
